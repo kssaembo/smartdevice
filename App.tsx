@@ -10,7 +10,7 @@ import { CustomDialog } from './components/CustomDialog';
 import { 
   LogOut, Settings, Plus, Download, RefreshCw, LayoutGrid, Search,
   Lock, QrCode, Loader2, X, SlidersHorizontal, Save, Trash2, Edit, AlertCircle, ExternalLink,
-  Database, CheckCircle2
+  Database, Sparkles
 } from 'lucide-react';
 import { exportToExcel } from './utils/excelHelper';
 import { db, isConfigValid } from './firebaseConfig';
@@ -21,7 +21,7 @@ import {
   updateDoc, 
   deleteDoc, 
   doc, 
-  getDoc,
+  setDoc,
   writeBatch
 } from "firebase/firestore";
 
@@ -105,6 +105,14 @@ const App: React.FC = () => {
 
     const unsubConfig = onSnapshot(doc(db, "app_config", "main"), (snap) => {
       if (snap.exists()) setConfig(snap.data() as AppConfig);
+      else {
+        // 기본 설정이 없는 경우 (최초 실행)
+        setConfig({
+          announcement: '새로운 시스템이 시작되었습니다. 관리자 메뉴에서 정보를 설정하세요.',
+          schoolName: '우리 학교 스마트기기 관리',
+          isEditingInProgress: false
+        });
+      }
     });
 
     return () => { unsubClasses(); unsubDevices(); unsubConfig(); };
@@ -122,38 +130,51 @@ const App: React.FC = () => {
     }).sort((a, b) => (a.classSequence || 0) - (b.classSequence || 0));
   }, [devices, activeTab, searchQuery]);
 
-  // 설정 미비 시 가이드 화면
+  // 최초 데이터 초기화 함수 (데이터가 하나도 없을 때 사용)
+  const initializeDatabase = async () => {
+    if (!db) return;
+    try {
+      setIsLoading(true);
+      // 1. 기본 설정 생성
+      await setDoc(doc(db, "app_config", "main"), {
+        schoolName: "우리 학교 스마트기기 관리",
+        announcement: "관리자 메뉴에서 공지사항을 수정할 수 있습니다.",
+        isEditingInProgress: false
+      });
+      // 2. 기본 학급 생성 (예시: 1학년 1반)
+      await setDoc(doc(db, "classes", "1-1"), { grade: 1, room: 1 });
+      showDialog('success', '초기화 완료', '기본 데이터가 생성되었습니다. 이제 시스템을 사용할 수 있습니다.');
+    } catch (e) {
+      showDialog('alert', '초기화 실패', '보안 규칙(Rules)이 "테스트 모드"인지 확인해주세요.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   if (!isConfigValid) {
     return (
-      <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-center p-6">
+      <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-center p-6 text-gray-900">
         <div className="max-w-2xl w-full bg-white rounded-[3rem] shadow-2xl overflow-hidden border border-blue-50">
           <div className="bg-[#1E3A8A] p-12 text-center text-white">
             <div className="w-20 h-20 bg-white/20 rounded-3xl flex items-center justify-center mx-auto mb-6 backdrop-blur-md">
               <Database size={40} className="text-white" />
             </div>
-            <h1 className="text-3xl font-black mb-3">백엔드 프로젝트 연결이 필요합니다</h1>
+            <h1 className="text-3xl font-black mb-3">프로젝트 코드 업데이트가 필요합니다</h1>
             <p className="text-blue-100 opacity-80 leading-relaxed font-medium">
-              이 서비스는 실시간 데이터 저장을 위해 Firebase를 사용합니다.<br/>
-              아래 3단계를 완료하면 서비스가 활성화됩니다.
+              콘솔 설정을 마치셨다면, 이제 <strong>firebaseConfig.ts</strong> 파일에<br/>
+              본인의 API 키 정보를 복사해 붙여넣어야 합니다.
             </p>
           </div>
           
-          <div className="p-10 space-y-8">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="bg-gray-50 p-6 rounded-3xl border border-gray-100 relative">
-                <span className="absolute -top-3 -left-3 w-8 h-8 bg-[#1E3A8A] text-white rounded-full flex items-center justify-center font-black text-sm">1</span>
-                <h4 className="font-black text-gray-900 mb-2">프로젝트 생성</h4>
-                <p className="text-xs text-gray-500 leading-tight">Firebase 콘솔에서 새 프로젝트를 만드세요.</p>
-              </div>
-              <div className="bg-gray-50 p-6 rounded-3xl border border-gray-100 relative">
-                <span className="absolute -top-3 -left-3 w-8 h-8 bg-[#1E3A8A] text-white rounded-full flex items-center justify-center font-black text-sm">2</span>
-                <h4 className="font-black text-gray-900 mb-2">웹 앱 추가</h4>
-                <p className="text-xs text-gray-500 leading-tight">중앙의 &lt;/&gt; 아이콘을 눌러 웹 앱을 등록하세요.</p>
-              </div>
-              <div className="bg-gray-50 p-6 rounded-3xl border border-gray-100 relative">
-                <span className="absolute -top-3 -left-3 w-8 h-8 bg-[#1E3A8A] text-white rounded-full flex items-center justify-center font-black text-sm">3</span>
-                <h4 className="font-black text-gray-900 mb-2">설정값 입력</h4>
-                <p className="text-xs text-gray-500 leading-tight">복사한 설정값을 firebaseConfig.ts에 넣으세요.</p>
+          <div className="p-10 space-y-6">
+            <div className="bg-amber-50 border border-amber-200 p-6 rounded-3xl flex gap-4 items-start">
+              <AlertCircle className="text-amber-500 shrink-0 mt-1" size={24} />
+              <div>
+                <h4 className="font-black text-amber-900 mb-1">코드가 아직 비어있습니다</h4>
+                <p className="text-sm text-amber-800 leading-relaxed">
+                  현재 앱의 <code>firebaseConfig.ts</code> 파일 내용이 수정되지 않아 브라우저가 본인의 Firebase 프로젝트를 찾지 못하고 있습니다. 
+                  복사한 키 값을 코드 블록에 붙여넣어주세요.
+                </p>
               </div>
             </div>
 
@@ -163,12 +184,9 @@ const App: React.FC = () => {
                 target="_blank" 
                 className="flex items-center justify-center gap-3 w-full py-5 bg-gray-900 text-white rounded-[1.5rem] font-black hover:bg-black transition-all shadow-xl group"
               >
-                Firebase 콘솔로 이동하기 <ExternalLink size={20} className="group-hover:translate-x-1 transition-transform" />
+                Firebase 콘솔로 이동하여 키 확인 <ExternalLink size={20} className="group-hover:translate-x-1 transition-transform" />
               </a>
-              <div className="flex items-center justify-center gap-2 text-gray-400">
-                <AlertCircle size={14} />
-                <span className="text-[11px] font-bold">수정 완료 후 페이지를 새로고침 하세요.</span>
-              </div>
+              <p className="text-center text-[11px] font-bold text-gray-400">키 값을 저에게 주시면 코드를 업데이트해 드릴 수 있습니다.</p>
             </div>
           </div>
         </div>
@@ -256,7 +274,7 @@ const App: React.FC = () => {
     <div className="min-h-screen bg-[#1E3A8A] flex items-center justify-center p-4">
       {showPasswordModal && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-md p-4">
-          <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-sm overflow-hidden">
+          <div className="bg-white rounded-[2rem] shadow-2xl w-full max-sm:max-w-xs max-w-sm overflow-hidden animate-in zoom-in duration-200">
             <div className="px-8 py-6 bg-gray-900 text-white flex justify-between items-center">
               <h3 className="font-black text-lg">{loginRole === 'ADMIN' ? '관리자' : '교사'} 인증</h3>
               <button onClick={() => setShowPasswordModal(false)} className="p-2 hover:bg-gray-800 rounded-full transition-colors"><X size={20}/></button>
@@ -282,6 +300,19 @@ const App: React.FC = () => {
           <button onClick={() => startLogin('ADMIN')} className="w-full py-5 bg-gray-900 text-white rounded-2xl font-black flex items-center justify-center gap-3 shadow-xl hover:scale-[1.02] transition-transform"><Lock size={20} /> 관리자 모드</button>
           <button onClick={() => startLogin('TEACHER')} className="w-full py-5 border-2 border-[#1E3A8A] text-[#1E3A8A] rounded-2xl font-black flex items-center justify-center gap-3 hover:bg-blue-50 transition-colors"><RefreshCw size={20} /> 교사 모드</button>
         </div>
+        
+        {/* 최초 데이터가 하나도 없을 때를 위한 안내 */}
+        {role === 'GUEST' && devices.length === 0 && classes.length === 0 && (
+          <div className="mt-8 pt-8 border-t border-gray-50">
+            <p className="text-[11px] text-gray-400 mb-4">연결은 되었으나 데이터가 없습니다.</p>
+            <button 
+              onClick={initializeDatabase}
+              className="text-xs font-bold text-blue-500 hover:underline flex items-center justify-center gap-1 mx-auto"
+            >
+              <Sparkles size={14}/> 시스템 초기 데이터 생성하기
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -335,43 +366,59 @@ const App: React.FC = () => {
           </div>
         </div>
 
-        <div className="mb-8 flex gap-3 overflow-x-auto pb-4 no-scrollbar">
-          <button 
-            onClick={() => setActiveTab('all')} 
-            className={`px-8 py-3.5 rounded-2xl font-black text-sm whitespace-nowrap transition-all shadow-sm border ${activeTab === 'all' ? 'bg-[#1E3A8A] text-white border-blue-900' : 'bg-white text-gray-400 hover:bg-gray-100 border-gray-100'}`}
-          >
-            전체 현황 ({devices.length})
-          </button>
-          {classes.map(c => (
-            <button 
-              key={c.id} 
-              onClick={() => setActiveTab(c.id)} 
-              className={`px-8 py-3.5 rounded-2xl font-black text-sm whitespace-nowrap transition-all shadow-sm border ${activeTab === c.id ? 'bg-[#1E3A8A] text-white border-blue-900' : 'bg-white text-gray-400 hover:bg-gray-100 border-gray-100'}`}
-            >
-              {c.grade}-{c.room}
-            </button>
-          ))}
-        </div>
+        {/* 학급이 하나도 없을 때 안내 */}
+        {classes.length === 0 && !isLoading && (
+          <div className="bg-white rounded-[2rem] p-16 text-center border-2 border-dashed border-gray-100">
+            <div className="w-16 h-16 bg-blue-50 text-blue-500 rounded-2xl flex items-center justify-center mx-auto mb-6">
+              <Plus size={32} />
+            </div>
+            <h3 className="text-xl font-black mb-2">등록된 학급이 없습니다</h3>
+            <p className="text-gray-400 mb-8">관리자 설정 메뉴에서 학급을 먼저 추가해주세요.</p>
+            {role === 'ADMIN' && <Button onClick={() => setIsAdminPanelOpen(true)}>학급 설정하러 가기</Button>}
+          </div>
+        )}
 
-        <DeviceTable 
-          devices={filteredDevices} role={role} 
-          selectedIds={selectedIds} onSelect={(id) => setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])} 
-          onSelectAll={setSelectedIds} 
-          onEdit={(d) => { setCurrentDevice(d); setModalMode('edit'); setIsDeviceModalOpen(true); }} 
-          onDelete={(id) => { 
-            showDialog('confirm', '기기 삭제', '정말 이 기기를 삭제하시겠습니까? 데이터는 즉시 제거됩니다.', async () => {
-              try {
-                await deleteDoc(doc(db, "devices", id));
-                showDialog('success', '삭제 완료', '데이터베이스에서 제거되었습니다.');
-              } catch (e) {
-                showDialog('alert', '삭제 실패', '삭제 권한이 없거나 네트워크 오류가 발생했습니다.');
-              }
-            });
-          }} 
-          onView={(d) => { setCurrentDevice(d); setModalMode('view'); setIsDeviceModalOpen(true); }} 
-          onGenerateQr={(d) => { setCurrentDevice(d); setIsQrBatchModalOpen(true); }} 
-          bulkEditMode={isBulkEdit} 
-        />
+        {classes.length > 0 && (
+          <>
+            <div className="mb-8 flex gap-3 overflow-x-auto pb-4 no-scrollbar">
+              <button 
+                onClick={() => setActiveTab('all')} 
+                className={`px-8 py-3.5 rounded-2xl font-black text-sm whitespace-nowrap transition-all shadow-sm border ${activeTab === 'all' ? 'bg-[#1E3A8A] text-white border-blue-900' : 'bg-white text-gray-400 hover:bg-gray-100 border-gray-100'}`}
+              >
+                전체 현황 ({devices.length})
+              </button>
+              {classes.map(c => (
+                <button 
+                  key={c.id} 
+                  onClick={() => setActiveTab(c.id)} 
+                  className={`px-8 py-3.5 rounded-2xl font-black text-sm whitespace-nowrap transition-all shadow-sm border ${activeTab === c.id ? 'bg-[#1E3A8A] text-white border-blue-900' : 'bg-white text-gray-400 hover:bg-gray-100 border-gray-100'}`}
+                >
+                  {c.grade}-{c.room}
+                </button>
+              ))}
+            </div>
+
+            <DeviceTable 
+              devices={filteredDevices} role={role} 
+              selectedIds={selectedIds} onSelect={(id) => setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])} 
+              onSelectAll={setSelectedIds} 
+              onEdit={(d) => { setCurrentDevice(d); setModalMode('edit'); setIsDeviceModalOpen(true); }} 
+              onDelete={(id) => { 
+                showDialog('confirm', '기기 삭제', '정말 이 기기를 삭제하시겠습니까? 데이터는 즉시 제거됩니다.', async () => {
+                  try {
+                    await deleteDoc(doc(db, "devices", id));
+                    showDialog('success', '삭제 완료', '데이터베이스에서 제거되었습니다.');
+                  } catch (e) {
+                    showDialog('alert', '삭제 실패', '삭제 권한이 없거나 네트워크 오류가 발생했습니다.');
+                  }
+                });
+              }} 
+              onView={(d) => { setCurrentDevice(d); setModalMode('view'); setIsDeviceModalOpen(true); }} 
+              onGenerateQr={(d) => { setCurrentDevice(d); setIsQrBatchModalOpen(true); }} 
+              bulkEditMode={isBulkEdit} 
+            />
+          </>
+        )}
       </main>
 
       <DeviceModal isOpen={isDeviceModalOpen} onClose={() => setIsDeviceModalOpen(false)} onSave={handleSaveDevice} device={currentDevice} mode={modalMode} classes={classes} />
