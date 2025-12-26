@@ -1,7 +1,6 @@
+
 {
   "name": "School Smart Device Management System",
   "description": "A comprehensive tablet management system for schools featuring QR code generation, Excel bulk upload/download, and teacher/admin access control.",
-  "requestFramePermissions": [
-    "camera"
-  ]
+  "requestFramePermissions": []
 }

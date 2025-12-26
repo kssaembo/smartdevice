@@ -2,19 +2,38 @@ import { initializeApp, getApps, getApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 
 /**
- * [보안 안내] 
- * GitHub 보안 경고를 해결하기 위해 하드코딩된 값을 process.env로 대체합니다.
- * Vercel 대시보드 -> Settings -> Environment Variables에서 아래 키들을 등록하세요.
+ * [필독] 본인의 Firebase 프로젝트 연결 방법
+ * 
+ * 1. https://console.firebase.google.com/ 접속
+ * 2. [프로젝트 추가] 클릭하여 새 프로젝트 생성
+ * 3. 중앙의 [</> 웹] 아이콘 클릭하여 앱 등록
+ * 4. 아래 'firebaseConfig' 부분에 본인의 설정값을 복사해서 붙여넣으세요.
  */
 const firebaseConfig = {
-  apiKey: process.env.FIREBASE_API_KEY || "AIzaSyA5V7v6oRnE8yVBtdSz714Bsz-9VeRtTKU",
-  authDomain: process.env.FIREBASE_AUTH_DOMAIN || "smart-device-management-system.firebaseapp.com",
-  projectId: process.env.FIREBASE_PROJECT_ID || "smart-device-management-system",
-  storageBucket: process.env.FIREBASE_STORAGE_BUCKET || "smart-device-management-system.firebasestorage.app",
-  messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID || "204878781002",
-  appId: process.env.FIREBASE_APP_ID || "1:204878781002:web:0a0720d028c0826e8264b3"
+  apiKey: "여기에_Firebase_콘솔에서_복사한_API_KEY를_넣으세요",
+  authDomain: "본인의_프로젝트_ID.firebaseapp.com",
+  projectId: "본인의_프로젝트_ID",
+  storageBucket: "본인의_프로젝트_ID.firebasestorage.app",
+  messagingSenderId: "본인의_SENDER_ID",
+  appId: "본인의_APP_ID"
 };
 
-// Fix: Use a more robust initialization pattern to handle HMR and ensure named exports are correctly resolved
-const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
-export const db = getFirestore(app);
+// API 키가 실제로 입력되었는지 엄격하게 확인
+const isConfigValid = firebaseConfig.apiKey && 
+                     firebaseConfig.apiKey !== "" && 
+                     !firebaseConfig.apiKey.includes("여기에") &&
+                     !firebaseConfig.apiKey.includes("API_KEY");
+
+let app;
+let db: any = null;
+
+if (isConfigValid) {
+  try {
+    app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+    db = getFirestore(app);
+  } catch (error) {
+    console.error("Firebase Initialization Error:", error);
+  }
+}
+
+export { db, isConfigValid };
