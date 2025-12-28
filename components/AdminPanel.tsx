@@ -1,14 +1,14 @@
-
 import React, { useState, useEffect } from 'react';
 import { SchoolClass, AppConfig } from '../types';
 import { Button } from './Button';
 import { Plus, Trash2, Save, X, School, Settings, LayoutGrid } from 'lucide-react';
 import { db } from '../firebaseConfig';
-import { doc, setDoc, deleteDoc, updateDoc } from 'firebase/firestore';
+import { doc, setDoc, deleteDoc, updateDoc, collection } from 'firebase/firestore';
 
 interface AdminPanelProps {
   isOpen: boolean;
   onClose: () => void;
+  schoolId: string;
   classes: SchoolClass[];
   config: AppConfig;
   onUpdateClasses: (classes: SchoolClass[]) => void;
@@ -19,6 +19,7 @@ interface AdminPanelProps {
 export const AdminPanel: React.FC<AdminPanelProps> = ({
   isOpen,
   onClose,
+  schoolId,
   classes,
   config,
   showDialog
@@ -31,7 +32,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   useEffect(() => {
     setAnnouncement(config.announcement);
     setSchoolName(config.schoolName);
-  }, [config]);
+  }, [config, isOpen]);
 
   if (!isOpen) return null;
 
@@ -43,36 +44,51 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     }
     
     try {
-      await setDoc(doc(db, "classes", id), {
+      if (!db) throw new Error("Database not initialized");
+      const schoolRef = doc(db, "schools", schoolId);
+      await setDoc(doc(schoolRef, "classes", id), {
         grade: newGrade,
         room: newRoom
       });
       showDialog('success', '학급 추가', `${newGrade}학년 ${newRoom}반이 추가되었습니다.`);
-    } catch (error) {
-      showDialog('alert', '오류', '학급 추가 중 서버 오류가 발생했습니다.');
+    } catch (error: any) {
+      console.error("Add Class Error:", error);
+      const msg = error.code === 'permission-denied' 
+        ? 'Firebase Console에서 쓰기 권한을 허용해야 합니다.' 
+        : '학급 추가 중 서버 오류가 발생했습니다.';
+      showDialog('alert', '오류', msg);
     }
   };
 
   const handleRemoveClass = async (id: string) => {
-    showDialog('confirm', '학급 삭제', `${id} 학급을 삭제하시겠습니까? 기기 데이터는 유지되지만 탭 목록에서 사라집니다.`, async () => {
+    showDialog('confirm', '학급 삭제', `${id} 학급을 삭제하시겠습니까?`, async () => {
       try {
-        await deleteDoc(doc(db, "classes", id));
+        const schoolRef = doc(db, "schools", schoolId);
+        await deleteDoc(doc(schoolRef, "classes", id));
         showDialog('success', '삭제 완료', '학급이 목록에서 제거되었습니다.');
       } catch (error) {
-        showDialog('alert', '오류', '삭제 중 오류가 발생했습니다.');
+        console.error("Remove Class Error:", error);
+        showDialog('alert', '오류', '삭제 권한이 없거나 서버 오류가 발생했습니다.');
       }
     });
   };
 
   const handleSaveConfig = async () => {
     try {
-      await updateDoc(doc(db, "app_config", "main"), {
+      if (!db) throw new Error("Database not initialized");
+      const schoolRef = doc(db, "schools", schoolId);
+      await setDoc(doc(schoolRef, "config", "main"), {
         announcement,
-        schoolName
-      });
-      showDialog('success', '저장 완료', '기본 설정(학교명, 공지사항)이 성공적으로 반영되었습니다.');
-    } catch (error) {
-      showDialog('alert', '저장 실패', '설정 업데이트 중 오류가 발생했습니다.');
+        schoolName,
+        isEditingInProgress: false
+      }, { merge: true });
+      showDialog('success', '저장 완료', '기본 설정이 성공적으로 반영되었습니다.');
+    } catch (error: any) {
+      console.error("Save Config Error:", error);
+      const msg = error.code === 'permission-denied' 
+        ? 'Firebase 보안 규칙(Rules)이 쓰기를 허용하지 않습니다. 콘솔 설정을 확인하세요.' 
+        : '설정 업데이트 중 오류가 발생했습니다.';
+      showDialog('alert', '저장 실패', msg);
     }
   };
 
@@ -92,7 +108,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         <div className="p-8 overflow-y-auto space-y-10 no-scrollbar">
           <section>
             <h3 className="text-sm font-black mb-4 flex items-center gap-2 text-gray-400 uppercase tracking-widest">
-              <School size={16} /> SCHOOL INFO
+              <School size={16} /> SCHOOL INFO (ID: {schoolId})
             </h3>
             <div className="space-y-4">
               <div className="space-y-1">
