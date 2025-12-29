@@ -37,6 +37,7 @@ const App: React.FC = () => {
   const [passwordInput, setPasswordInput] = useState('');
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [loginRole, setLoginRole] = useState<UserRole | null>(null);
+  const [loginError, setLoginError] = useState('');
 
   const [devices, setDevices] = useState<Device[]>([]);
   const [classes, setClasses] = useState<SchoolClass[]>([]);
@@ -210,6 +211,7 @@ const App: React.FC = () => {
     const inputPass = passwordInput.trim();
 
     if (inputCode !== 'dongan' && inputCode !== 'test') {
+      setLoginError('등록되지 않은 학교 코드입니다.');
       showDialog('alert', '입력 오류', '등록되지 않은 학교 코드입니다.');
       return;
     }
@@ -230,6 +232,7 @@ const App: React.FC = () => {
     }
 
     if (loginSucceeded) {
+      setLoginError('');
       setSchoolId(inputCode);
       setRole(targetRole);
       setIsLoggedIn(true);
@@ -239,6 +242,7 @@ const App: React.FC = () => {
       localStorage.setItem('userRole', targetRole);
       localStorage.setItem('isLoggedIn', 'true');
     } else {
+      setLoginError('비밀번호를 확인해주세요.');
       showDialog('alert', '로그인 실패', '비밀번호를 다시 확인해주세요.');
     }
   };
@@ -251,6 +255,7 @@ const App: React.FC = () => {
   const startLogin = (targetRole: UserRole) => {
     setLoginRole(targetRole); 
     setPasswordInput(''); 
+    setLoginError('');
     setShowPasswordModal(true);
   };
 
@@ -275,6 +280,7 @@ const App: React.FC = () => {
 
   if (!isLoggedIn) return (
     <div className="min-h-screen bg-[#1E3A8A] flex items-center justify-center p-4">
+      <CustomDialog {...dialog} onCancel={() => setDialog(prev => ({ ...prev, isOpen: false }))} />
       {showPasswordModal && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-md p-4">
           <div className="bg-white rounded-[2rem] shadow-2xl w-full max-sm:max-w-xs max-w-sm overflow-hidden animate-in zoom-in duration-200">
@@ -289,7 +295,7 @@ const App: React.FC = () => {
                   <School className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300" size={20} />
                   <input 
                     type="text" value={schoolCodeInput} 
-                    onChange={(e) => setSchoolCodeInput(e.target.value)} 
+                    onChange={(e) => { setSchoolCodeInput(e.target.value); setLoginError(''); }} 
                     className="w-full border-2 border-gray-100 rounded-2xl pl-12 pr-4 py-4 focus:border-blue-500 outline-none font-bold text-gray-700" 
                     placeholder="학교 코드를 입력하세요 (dongan/test)" 
                   />
@@ -301,11 +307,16 @@ const App: React.FC = () => {
                   <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300" size={20} />
                   <input 
                     autoFocus type="password" value={passwordInput} 
-                    onChange={(e) => setPasswordInput(e.target.value)} 
-                    className="w-full border-2 border-gray-300 bg-gray-50 rounded-2xl pl-12 pr-4 py-4 focus:border-blue-500 focus:bg-white outline-none text-2xl font-black tracking-widest transition-all" 
+                    onChange={(e) => { setPasswordInput(e.target.value); setLoginError(''); }} 
+                    className={`w-full border-2 rounded-2xl pl-12 pr-4 py-4 focus:border-blue-500 focus:bg-white outline-none text-2xl font-black tracking-widest transition-all ${loginError ? 'border-red-500 bg-red-50' : 'border-gray-300 bg-gray-50'}`} 
                     placeholder="****" 
                   />
                 </div>
+                {loginError && (
+                  <p className="text-red-500 text-xs font-bold mt-2 ml-1 flex items-center gap-1 animate-pulse">
+                    <AlertCircle size={12} /> {loginError}
+                  </p>
+                )}
               </div>
               <Button type="submit" variant="primary" className="w-full py-5 rounded-2xl text-lg shadow-xl shadow-blue-100">입장하기</Button>
             </form>
