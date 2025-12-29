@@ -360,7 +360,7 @@ const App: React.FC = () => {
             </div>
             <h3 className="text-3xl font-black text-gray-900 mb-6 tracking-tight">Firebase 보안 규칙 수정 필요</h3>
             <p className="text-gray-500 font-medium mb-10 max-w-2xl leading-relaxed text-lg">
-              현재 Firebase Console의 <strong>Firestore Database > Rules</strong> 탭 설정이 <br/>
+              현재 Firebase Console의 <strong>Firestore Database &gt; Rules</strong> 탭 설정이 <br/>
               데이터 저장 경로(<code>/schools/</code>)를 허용하지 않고 있습니다.<br/>
               아래 코드를 복사하여 Rules 탭에 붙여넣고 <strong>[게시]</strong>를 눌러주세요.
             </p>
